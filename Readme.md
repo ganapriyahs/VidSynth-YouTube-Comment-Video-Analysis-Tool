@@ -10,8 +10,12 @@ Go to "APIs & Services" -> "Credentials
 Click "+ CREATE CREDENTIALS" -> "API key"  
 Consider restricting it to YouTube Data API for security  
 
-### 2. Replace ""YOUR_API_KEY_HERE" with your key.
+### 2. Dependencies:  
+pip install youtube-transcript-api  
+pip install requests 
+
+### 3. Replace ""YOUR_API_KEY_HERE" with your key.
   
-### 3. The "_simple" does the same thing, but less functions, and easier to follow.  
+### 4. The "_simple" version of YouTubeCommentPull.py both do the same thing, but has less functions, and is easier to follow.  
 
 **Note: Later, API keys should never be exposed on Github, should have private environment file that we each have.**
