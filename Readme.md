@@ -2,11 +2,11 @@
 architecture orchestrated by Apache Airflow:
 
 #### FastAPI Microservices (Python):
-read_service: Receives a full YouTube video URL, extracts the Video ID.
-preprocess_service: Receives the Video ID, fetches the video transcript and top comments using the YouTube Transcript API and YouTube Data API v3.
-llm_service: Receives the transcript and comments, uses a Hugging Face Transformer model (e.g., Flan-T5) to generate summaries for both.
-validate_service: Performs basic quality checks on the generated summaries (e.g., length, checks for placeholders).
-push_service: Receives the validated summaries and logs them (in a real application, this would save to a database or send to a front-end).
+- read_service: Receives a full YouTube video URL, extracts the Video ID.
+- preprocess_service: Receives the Video ID, fetches the video transcript and top comments using the YouTube Transcript API and YouTube Data API v3.
+- llm_service: Receives the transcript and comments, uses a Hugging Face Transformer model (e.g., Flan-T5) to generate summaries for both.
+- validate_service: Performs basic quality checks on the generated summaries (e.g., length, checks for placeholders).
+- push_service: Receives the validated summaries and logs them (in a real application, this would save to a database or send to a front-end).
 
 #### Apache Airflow (Orchestration):
 Manages the workflow, calling each microservice in the correct sequence.
