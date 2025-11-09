@@ -1,11 +1,15 @@
 from fastapi import FastAPI
+from pydantic import BaseModel
 import requests
 
 app = FastAPI()
 
+class VideoRequest(BaseModel):
+    video_id: str
+
 @app.post("/summarize")
-def summarize(payload: dict):
-    video_id = payload["video_id"]
+def summarize(request: VideoRequest):
+    video_id = request.video_id
 
     # Step 1: Read transcript + comments
     read_res = requests.get(f"http://127.0.0.1:8001/read?video_id={video_id}").json()
