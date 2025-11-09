@@ -3,22 +3,20 @@ import requests
 
 app = FastAPI()
 
-@app.get("/summarize")
-def summarize(video_id: str):
-    try:
-        # 1️⃣ READ SERVICE: extract transcript & comments
-        transcript = requests.get(f"http://localhost:8001/read?video_id={video_id}").json()
+@app.post("/summarize")
+def summarize(payload: dict):
+    video_id = payload["video_id"]
 
-        # 2️⃣ PREPROCESS SERVICE
-        processed = requests.post("http://localhost:8002/preprocess", json=transcript).json()
+    # Step 1: Read transcript + comments
+    read_res = requests.get(f"http://127.0.0.1:8001/read?video_id={video_id}").json()
 
-        # 3️⃣ LLM SERVICE: generate summary
-        summary = requests.post("http://localhost:8003/summarize", json=processed).json()
+    # Step 2: Preprocess
+    preprocess_res = requests.post("http://127.0.0.1:8002/preprocess", json=read_res).json()
 
-        # 4️⃣ VALIDATION SERVICE
-        validated = requests.post("http://localhost:8004/validate", json=summary).json()
+    # Step 3: LLM Summary
+    llm_res = requests.post("http://127.0.0.1:8003/summarize", json=preprocess_res).json()
 
-        return validated
-    
-    except Exception as e:
-        return {"error": str(e), "message": "Backend services not running"}
+    # Step 4: Validation
+    validate_res = requests.post("http://127.0.0.1:8004/validate", json=llm_res).json()
+
+    return validate_res
