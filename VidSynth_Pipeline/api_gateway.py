@@ -1,33 +1,24 @@
 from fastapi import FastAPI
-import uvicorn
-
-# Import your service methods (we will fix these paths after you confirm file names)
-from read_service.main import extract_video_id
-from preprocess_service.main import preprocess
-from llm_service.main import generate_summary
-from validate_service.main import validate_output
+import requests
 
 app = FastAPI()
 
 @app.get("/summarize")
-def summarize(videoId: str):
+def summarize(video_id: str):
+    try:
+        # 1️⃣ READ SERVICE: extract transcript & comments
+        transcript = requests.get(f"http://localhost:8001/read?video_id={video_id}").json()
 
-    # 1️⃣ Extract transcript & comments
-    transcript, comments = extract_video_id(videoId)
+        # 2️⃣ PREPROCESS SERVICE
+        processed = requests.post("http://localhost:8002/preprocess", json=transcript).json()
 
-    # 2️⃣ Preprocess
-    cleaned = preprocess(transcript, comments)
+        # 3️⃣ LLM SERVICE: generate summary
+        summary = requests.post("http://localhost:8003/summarize", json=processed).json()
 
-    # 3️⃣ Generate summary
-    result = generate_summary(cleaned)
+        # 4️⃣ VALIDATION SERVICE
+        validated = requests.post("http://localhost:8004/validate", json=summary).json()
 
-    # 4️⃣ Validate
-    final = validate_output(result)
-
-    return {
-        "video_summary": final.get("video_summary"),
-        "comments_summary": final.get("comments_summary")
-    }
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+        return validated
+    
+    except Exception as e:
+        return {"error": str(e), "message": "Backend services not running"}
