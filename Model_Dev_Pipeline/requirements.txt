@@ -1,0 +1,5 @@
+python-dotenv
+youtube_transcript_api
+requests
+deepeval
+huggingface-hub
