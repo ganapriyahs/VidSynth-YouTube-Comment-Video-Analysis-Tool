@@ -71,9 +71,10 @@ if __name__ == "__main__":
     for test in videoListData['videoList']:
         print(f"Attempting to Judge summaries for {test['video_url']}")
 
-        if test.get('comment_eval_score') is not None and test.get('trans_eval_score') is not None:
-            print("Already Validated: skipping this test...")
-            continue
+        # NOTE: uncommet if you have a partial run and don't want to rerun all tests
+        # if test.get('comment_eval_score') is not None and test.get('trans_eval_score') is not None:
+        #     print("Already Validated: skipping this test...")
+        #     continue
 
         # get existing data
         tempTrans = test['transcript']

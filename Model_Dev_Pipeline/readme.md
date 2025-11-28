@@ -31,13 +31,17 @@ On the other hand, this service requires billing. However, for testing purposes 
 [Home Page For OpenAI API](https://platform.openai.com/docs/overview)  
 To create an API key, naviaget to the following link: [API KEY page](https://platform.openai.com/settings/organization/api-keys)  
 
+### Code setup (Docker):
+1. ```cd Model_Dev_Pipeline```
+2. ```docker build -t model-dev-pipeline```
+3. ```docker run model-dev-pipeline``` 
 
-### Code setup:  
+### Code setup (Manual):  
 1. Create a virtual environment
 2. ```pip install -r requirements.txt```
 3. Change directory to 'Src' folder  
 4. Add your API keys to .env file
-5. ```python validate_summaries.py```
+5. ```python initialize_validation_set.py```
 6. ```python generate_summaries_all_test.py```
 7. ```python validate_summaries.py```
 
