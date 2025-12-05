@@ -1,0 +1,18 @@
+schema: '2.0'
+stages:
+  validate_summaries:
+    cmd: python src/validate_summaries.py
+    deps:
+    - path: src/validate_summaries.py
+      hash: md5
+      md5: 35a6dad1d64827d0f61a38481fd6a5bc
+      size: 2542
+    - path: src/videos.txt
+      hash: md5
+      md5: d383a902ca8b1073844fa7bcc00f717f
+      size: 684
+    outs:
+    - path: src/videoList.json
+      hash: md5
+      md5: 78d06ba100879451673643498c5f27d0
+      size: 8087

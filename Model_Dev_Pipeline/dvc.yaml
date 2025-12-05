@@ -1,0 +1,8 @@
+stages:
+  validate_summaries:
+    cmd: python src/validate_summaries.py
+    deps:
+    - src/validate_summaries.py
+    - src/videos.txt
+    outs:
+    - src/videoList.json
