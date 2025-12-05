@@ -1,2 +1,3 @@
 *.deepeval
 .venv/
+.env
