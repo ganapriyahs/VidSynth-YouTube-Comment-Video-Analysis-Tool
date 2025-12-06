@@ -1,3 +1,4 @@
+# For bias changes
 # Import necessary libraries
 from fastapi import FastAPI, HTTPException 
 from schemas import VideoIdInput, PreprocessOutput
@@ -18,7 +19,7 @@ def root():
 def preprocess(request: VideoIdInput):
     """
     Accepts a POST request containing a YouTube video ID,
-    fetches the transcript and comments for that video using the youtube_client,
+    fetches the transcript, comments, and video title for that video,
     and returns the fetched data.
     """
     video_id = request.video_id
@@ -32,17 +33,20 @@ def preprocess(request: VideoIdInput):
 
     transcript = data.get("transcript", "")
     comments = data.get("comments", "")
+    video_title = data.get("video_title", "Unknown Title")
 
     if not transcript and not comments:
         logger.warning(f"Could not retrieve any data (transcript or comments) for video_id: {video_id}")
         logger.info(f"PREPROCESS SERVICE: No data found for video_id: {video_id}, returning empty strings.")
-
     else:
-         logger.info(f"PREPROCESS SERVICE: Successfully fetched data for video_id: {video_id}")
+        logger.info(f"PREPROCESS SERVICE: Successfully fetched data for video_id: {video_id}")
+    
+    # Log video title for debugging
+    logger.info(f"PREPROCESS SERVICE: Video title: '{video_title}'")
 
     return PreprocessOutput(
         video_id=video_id,
         transcript=transcript,
-        comments=comments
+        comments=comments,
+        video_title=video_title
     )
-

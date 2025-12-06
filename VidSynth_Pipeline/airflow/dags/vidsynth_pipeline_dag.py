@@ -2,7 +2,8 @@
 import pendulum  
 import requests 
 from airflow.decorators import dag, task  
-from airflow.models.param import Param  
+from airflow.models.param import Param
+from datetime import timedelta  # Added this import so that airflow timer doesn't affect  
 
 # Define the URLs for each microservice.
 # These use the Docker service names defined in docker-compose.yml,
@@ -18,7 +19,10 @@ URL_PUSH = "http://push_service:5005/push"
     start_date=pendulum.now("UTC"),  
     schedule=None,  
     catchup=False, 
-    tags=["vidsynth", "mlops"],  
+    tags=["vidsynth", "mlops"],
+    default_args={
+        'execution_timeout': timedelta(minutes=10)  # Added this to address airflow timeout issue
+    },  
 
     # parameters added before triggering the dag
     params={
