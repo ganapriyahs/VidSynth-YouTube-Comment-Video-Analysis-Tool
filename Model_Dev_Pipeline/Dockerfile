@@ -16,4 +16,4 @@ WORKDIR /app/src
 RUN mkdir /output
 
 # Run all three scripts sequentially, then copy output to mounted volume (output)
-CMD ["sh", "-c", "python initialize_validation_set.py && python generate_summaries_all_test.py && python validate_summaries.py && cp videoList.json /output/"]
+CMD ["sh", "-c", "python initialize_validation_set.py && python generate_summaries_all_test.py && python validate_summaries.py && cp videoList.json log.txt /output/"]
