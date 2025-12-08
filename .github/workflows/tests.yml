@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master, llama-integration]
+  pull_request:
+    branches: [main, master, llama-integration]
+
+jobs:
+  test-read:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install read service dependencies
+        run: pip install -r VidSynth_Pipeline/read_service/requirements.txt
+      
+      - name: Install test dependencies
+        run: pip install -r VidSynth_Pipeline/requirements-dev.txt
+      
+      - name: Run read tests
+        run: pytest VidSynth_Pipeline/tests/test_read.py -v
+
+  test-preprocess:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install preprocess service dependencies
+        run: pip install -r VidSynth_Pipeline/preprocess_service/requirements.txt
+      
+      - name: Install test dependencies
+        run: pip install -r VidSynth_Pipeline/requirements-dev.txt
+      
+      - name: Run preprocess tests
+        run: pytest VidSynth_Pipeline/tests/test_preprocess.py -v
