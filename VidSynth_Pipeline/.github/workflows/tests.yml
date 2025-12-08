@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-read:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install read service dependencies
+        run: pip install -r read_service/requirements.txt
+      
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+      
+      - name: Run read tests
+        run: pytest tests/test_read.py -v
+
+  test-preprocess:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install preprocess service dependencies
+        run: pip install -r preprocess_service/requirements.txt
+      
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+      
+      - name: Run preprocess tests
+        run: pytest tests/test_preprocess.py -v
