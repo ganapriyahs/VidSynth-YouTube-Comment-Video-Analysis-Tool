@@ -12,8 +12,12 @@ set -e
 # =============================================================================
 PROJECT_ID="vidsynth-demo-proj2025"
 REGION="us-central1"
+ZONE="us-central1-a"
 ARTIFACT_REPO="vidsynth-repo"
 BUCKET_NAME="vidsynth-demo-model-store"
+COMPOSER_ENV="vidsynth-composer"
+LLM_SERVICE_NAME="llm-service"
+LLM_SETUP_VM="llm-setup-vm"
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -28,7 +32,10 @@ log() {
 echo "=========================================="
 echo "WARNING: This will delete the following:"
 echo "  - Project: $PROJECT_ID"
-echo "  - All resources within the project"
+echo "  - Composer environment: $COMPOSER_ENV"
+echo "  - All Cloud Run services"
+echo "  - Artifact Registry and images"
+echo "  - Storage bucket: $BUCKET_NAME"
 echo "=========================================="
 echo ""
 read -p "Are you sure you want to continue? (type 'yes' to confirm): " CONFIRM
@@ -66,6 +73,26 @@ case $MODE in
         # ---------------------------------------------------------------------
         log "Setting active project..."
         gcloud config set project "$PROJECT_ID"
+        
+        # Delete LLM setup VM if still running
+        log "Checking for LLM setup VM..."
+        if gcloud compute instances describe "$LLM_SETUP_VM" --zone="$ZONE" &> /dev/null; then
+            log "  Deleting LLM setup VM..."
+            gcloud compute instances delete "$LLM_SETUP_VM" --zone="$ZONE" --quiet
+            log "  LLM setup VM deleted"
+        else
+            log "  LLM setup VM not found, skipping"
+        fi
+        
+        # Delete Composer environment first (most expensive, takes longest)
+        log "Checking for Composer environment..."
+        if gcloud composer environments describe "$COMPOSER_ENV" --location="$REGION" &> /dev/null; then
+            log "  Deleting Composer environment $COMPOSER_ENV (this takes ~10 min)..."
+            gcloud composer environments delete "$COMPOSER_ENV" --location="$REGION" --quiet
+            log "  Composer environment deleted"
+        else
+            log "  Composer environment not found, skipping"
+        fi
         
         # Delete Cloud Run services (if any)
         log "Checking for Cloud Run services..."

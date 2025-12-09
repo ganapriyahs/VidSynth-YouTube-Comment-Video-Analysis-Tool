@@ -1,0 +1,60 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: llm-service
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: '3'
+        autoscaling.knative.dev/minScale: '1'
+        run.googleapis.com/cpu-throttling: 'false'
+        run.googleapis.com/gpu-zonal-redundancy-disabled: 'true'
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 600
+      containers:
+      - name: tgi
+        image: us-central1-docker.pkg.dev/vidsynth-demo-proj2025/vidsynth-repo/tgi:2.4.1
+        command:
+        - text-generation-launcher
+        args:
+        - --model-id
+        - /model
+        - --max-input-length
+        - '4096'
+        - --max-total-tokens
+        - '5096'
+        - --max-concurrent-requests
+        - '10'
+        ports:
+        - containerPort: 8080
+          name: http1
+        resources:
+          limits:
+            cpu: 8000m
+            memory: 32Gi
+            nvidia.com/gpu: '1'
+        startupProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 240
+          periodSeconds: 60
+          failureThreshold: 10
+          timeoutSeconds: 10
+        volumeMounts:
+        - mountPath: /model
+          name: llama-model
+      volumes:
+      - name: llama-model
+        csi:
+          driver: gcsfuse.run.googleapis.com
+          volumeAttributes:
+            bucketName: vidsynth-demo-model-store
+            mountOptions: only-dir=llama3-8b-awq
+      nodeSelector:
+        run.googleapis.com/accelerator: nvidia-l4
+  traffic:
+  - latestRevision: true
+    percent: 100

@@ -4,9 +4,13 @@
 # Purpose: Deploy Cloud Composer, Cloud Run services, set Airflow variables,
 #          and upload DAG — all in one sequential script
 # 
+# Prerequisites: 
+#   - 01-bootstrap.sh has been run
+#   - 02-setup-llm.sh has been run (optional, but recommended before this)
+#
 # IMPORTANT: Run this inside tmux to prevent Cloud Shell timeout issues:
 #   tmux new -s deploy
-#   ./02-deploy.sh
+#   ./03-deploy.sh
 #   (If disconnected, reconnect and run: tmux attach -t deploy)
 # =============================================================================
 
@@ -20,13 +24,14 @@ REGION="us-central1"
 ARTIFACT_REPO="vidsynth-repo"
 COMPOSER_ENV="vidsynth-composer"
 COMPOSER_IMAGE="composer-2.9.7-airflow-2.9.3"
+LLM_SERVICE_NAME="llm-service"
 
 # Container registry base path
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}"
 
 # Path to services and DAG (relative to this script's location)
 PIPELINE_DIR="../VidSynth_Pipeline"
-DAG_SOURCE="../VidSynth_Pipeline/airflow/dags/vidsynth_pipeline_dag_DEMO.py"
+DAG_SOURCE="../VidSynth_Pipeline/airflow/dags/vidsynth_pipeline_dag.py"
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -201,6 +206,20 @@ SERVICE_URLS["URL_PUSH"]=$(gcloud run services describe push-service \
     --region="$REGION" --format="value(status.url)")
 log "push-service deployed: ${SERVICE_URLS["URL_PUSH"]}"
 
+# -----------------------------------------------------------------------------
+# Check for LLM service (deployed by 02-setup-llm.sh)
+# -----------------------------------------------------------------------------
+log ">>> Checking for LLM service..."
+if gcloud run services describe "$LLM_SERVICE_NAME" --region="$REGION" &> /dev/null; then
+    SERVICE_URLS["URL_LLM"]=$(gcloud run services describe "$LLM_SERVICE_NAME" \
+        --region="$REGION" --format="value(status.url)")
+    log "LLM service found: ${SERVICE_URLS["URL_LLM"]}"
+    LLM_EXISTS=true
+else
+    log "LLM service not found (run 02-setup-llm.sh to deploy)"
+    LLM_EXISTS=false
+fi
+
 # =============================================================================
 # STEP 3: WAIT FOR COMPOSER TO BE READY
 # =============================================================================
@@ -241,6 +260,14 @@ gcloud composer environments run "$COMPOSER_ENV" \
     --location="$REGION" \
     variables set -- URL_PUSH "${SERVICE_URLS["URL_PUSH"]}/push"
 
+# Set URL_LLM if LLM service exists
+if [ "$LLM_EXISTS" = true ]; then
+    log "Setting URL_LLM..."
+    gcloud composer environments run "$COMPOSER_ENV" \
+        --location="$REGION" \
+        variables set -- URL_LLM "${SERVICE_URLS["URL_LLM"]}/generate"
+fi
+
 log "Airflow variables set"
 
 # =============================================================================
@@ -273,14 +300,24 @@ echo "  read-service:       ${SERVICE_URLS["URL_READ"]}"
 echo "  preprocess-service: ${SERVICE_URLS["URL_PREPROCESS"]}"
 echo "  validate-service:   ${SERVICE_URLS["URL_VALIDATE"]}"
 echo "  push-service:       ${SERVICE_URLS["URL_PUSH"]}"
+if [ "$LLM_EXISTS" = true ]; then
+    echo "  llm-service:        ${SERVICE_URLS["URL_LLM"]}"
+fi
 echo ""
 echo "Cloud Composer:"
 echo "  Environment: $COMPOSER_ENV"
 echo "  Airflow UI:  $AIRFLOW_URI"
 echo ""
 echo "Airflow Variables set:"
-echo "  URL_READ, URL_PREPROCESS, URL_VALIDATE, URL_PUSH"
-echo ""
-echo "NOTE: LLM service not included (handled separately)"
+if [ "$LLM_EXISTS" = true ]; then
+    echo "  URL_READ, URL_PREPROCESS, URL_VALIDATE, URL_PUSH, URL_LLM"
+else
+    echo "  URL_READ, URL_PREPROCESS, URL_VALIDATE, URL_PUSH"
+    echo ""
+    echo "NOTE: LLM service not found. Run 02-setup-llm.sh then re-run this script"
+    echo "      to set URL_LLM, or set it manually:"
+    echo "      gcloud composer environments run $COMPOSER_ENV --location=$REGION \\"
+    echo "        variables set -- URL_LLM '<llm-service-url>/generate'"
+fi
 echo ""
 echo "To tear down all resources: ./99-teardown.sh"
