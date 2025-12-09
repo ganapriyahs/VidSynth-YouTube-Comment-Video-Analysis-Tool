@@ -26,7 +26,7 @@ REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}"
 
 # Path to services and DAG (relative to this script's location)
 PIPELINE_DIR="../VidSynth_Pipeline"
-DAG_SOURCE="../VidSynth_Pipeline/airflow/dags/vidsynth_pipeline_dag.py"
+DAG_SOURCE="../VidSynth_Pipeline/airflow/dags/vidsynth_pipeline_dag_DEMO.py"
 
 # =============================================================================
 # HELPER FUNCTIONS
