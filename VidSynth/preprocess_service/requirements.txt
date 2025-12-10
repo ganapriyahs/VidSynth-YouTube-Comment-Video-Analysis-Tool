@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+requests
+pydantic
+google-api-python-client
+yt-dlp

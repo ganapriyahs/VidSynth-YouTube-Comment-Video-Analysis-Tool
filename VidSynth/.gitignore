@@ -1,0 +1,43 @@
+.DS_Store
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Logs and temp files
+*.log
+*.tmp
+*.out
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Docker / build artifacts
+*.pid
+*.sock
+*.sqlite3
+*.db
+*.bak
+*.swp
+
+# VS Code / IDE settings
+.vscode/
+.idea/
+*.iml
+
+# Hugging Face / API keys
+HF_TOKEN
+*.env
+.env
+
+# Preprocess or temporary files
+cookies.txt
+*.json.lock
+
