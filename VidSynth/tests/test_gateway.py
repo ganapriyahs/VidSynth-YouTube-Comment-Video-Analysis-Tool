@@ -6,8 +6,11 @@ import sys
 import json
 
 # ---------------------------------------------------------------------------
-# Path setup (must come before importing service code)
+# Path and environment setup (must come before importing service code)
 # ---------------------------------------------------------------------------
+
+# Set required environment variable before importing main
+os.environ["AIRFLOW_WEBSERVER_URL"] = "https://fake-airflow.example.com"
 
 # Add gateway service directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "gateway_service"))
@@ -15,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "gateway_servic
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-from main import app, PROJECT_ID, RESULTS_BUCKET, DAG_ID, AIRFLOW_WEBSERVER_URL
+from main import app, RESULTS_BUCKET, DAG_ID, AIRFLOW_WEBSERVER_URL
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +206,21 @@ def test_summarize_refreshes_credentials(mock_gcs, mock_auth, mock_requests, cli
 # ---------------------------------------------------------------------------
 # Tests for /summarize endpoint - error handling
 # ---------------------------------------------------------------------------
+
+def test_summarize_returns_500_when_airflow_url_not_configured(mock_gcs, mock_auth, mock_requests, client):
+    """POST /summarize should return 500 when AIRFLOW_WEBSERVER_URL is not set."""
+    import main
+    original_url = main.AIRFLOW_WEBSERVER_URL
+    main.AIRFLOW_WEBSERVER_URL = None
+    
+    try:
+        response = client.post("/summarize", json={"video_id": "abc123"})
+        
+        assert response.status_code == 500
+        assert "AIRFLOW_WEBSERVER_URL not configured" in response.json()["detail"]
+    finally:
+        main.AIRFLOW_WEBSERVER_URL = original_url
+
 
 def test_summarize_returns_500_on_airflow_error(mock_gcs, mock_auth, mock_requests, client):
     """POST /summarize should return 500 when Airflow API fails."""
