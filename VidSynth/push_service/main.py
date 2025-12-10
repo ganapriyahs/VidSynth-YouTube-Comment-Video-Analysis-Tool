@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="VidSynth Push Service")
 
 # CONFIGURATION
-BUCKET_NAME = "vidsynth_results" 
+BUCKET_NAME = "vidsynth-results" # can keep hardcoded 
 
 @app.get("/")
 def root():

@@ -24,14 +24,18 @@ REGION="us-central1"
 ARTIFACT_REPO="vidsynth-repo"
 COMPOSER_ENV="vidsynth-composer"
 COMPOSER_IMAGE="composer-2.9.7-airflow-2.9.3"
-LLM_SERVICE_NAME="llm-service"
+
+# Service names
+TGI_SERVICE_NAME="tgi-service"       # GPU service running TGI (deployed by 02-setup-llm.sh)
+LLM_SERVICE_NAME="llm-service"       # Wrapper service that calls TGI
+GATEWAY_SERVICE_NAME="gateway-service"
 
 # Container registry base path
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}"
 
 # Path to services and DAG (relative to this script's location)
-PIPELINE_DIR="../VidSynth_Pipeline"
-DAG_SOURCE="../VidSynth_Pipeline/airflow/dags/vidsynth_pipeline_dag.py"
+PIPELINE_DIR="../VidSynth"
+DAG_SOURCE="../VidSynth/airflow/dags/FRESH_ENV_DEMO.py"
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -65,6 +69,19 @@ wait_for_composer() {
 # PREREQUISITE CHECKS
 # =============================================================================
 log "Checking prerequisites..."
+
+# Check for required environment variables
+if [ -z "$YOUTUBE_API_KEY" ]; then
+    echo "ERROR: YOUTUBE_API_KEY environment variable not set"
+    echo ""
+    echo "This is required for the preprocess service to fetch YouTube data."
+    echo "Get your API key from: https://console.cloud.google.com/apis/credentials"
+    echo ""
+    echo "Then run:"
+    echo "  export YOUTUBE_API_KEY=\"your-api-key-here\""
+    echo "  ./03-deploy.sh"
+    exit 1
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_PATH="$SCRIPT_DIR/$PIPELINE_DIR"
@@ -156,6 +173,7 @@ gcloud run deploy preprocess-service \
     --max-instances 3 \
     --memory 512Mi \
     --cpu 1 \
+    --set-env-vars "YOUTUBE_API_KEY=${YOUTUBE_API_KEY}" \
     --allow-unauthenticated
 
 SERVICE_URLS["URL_PREPROCESS"]=$(gcloud run services describe preprocess-service \
@@ -207,16 +225,46 @@ SERVICE_URLS["URL_PUSH"]=$(gcloud run services describe push-service \
 log "push-service deployed: ${SERVICE_URLS["URL_PUSH"]}"
 
 # -----------------------------------------------------------------------------
-# Check for LLM service (deployed by 02-setup-llm.sh)
+# Check for TGI service (deployed by 02-setup-llm.sh)
 # -----------------------------------------------------------------------------
-log ">>> Checking for LLM service..."
-if gcloud run services describe "$LLM_SERVICE_NAME" --region="$REGION" &> /dev/null; then
-    SERVICE_URLS["URL_LLM"]=$(gcloud run services describe "$LLM_SERVICE_NAME" \
+log ">>> Checking for TGI service..."
+if gcloud run services describe "$TGI_SERVICE_NAME" --region="$REGION" &> /dev/null; then
+    TGI_URL=$(gcloud run services describe "$TGI_SERVICE_NAME" \
         --region="$REGION" --format="value(status.url)")
-    log "LLM service found: ${SERVICE_URLS["URL_LLM"]}"
+    log "TGI service found: ${TGI_URL}"
+    TGI_EXISTS=true
+else
+    log "TGI service not found (run 02-setup-llm.sh first)"
+    TGI_EXISTS=false
+fi
+
+# -----------------------------------------------------------------------------
+# llm-service (wrapper that calls TGI)
+# -----------------------------------------------------------------------------
+if [ "$TGI_EXISTS" = true ]; then
+    log ">>> Building llm-service (wrapper)..."
+    cd "$PIPELINE_PATH/llm_service"
+    
+    gcloud builds submit --tag "${REGISTRY}/llm-service"
+    
+    log ">>> Deploying llm-service with TGI_SERVICE_URL..."
+    gcloud run deploy llm-service \
+        --image "${REGISTRY}/llm-service" \
+        --region "$REGION" \
+        --min-instances 1 \
+        --max-instances 3 \
+        --memory 1Gi \
+        --cpu 1 \
+        --timeout 600 \
+        --set-env-vars "TGI_SERVICE_URL=${TGI_URL}/generate" \
+        --allow-unauthenticated
+    
+    SERVICE_URLS["URL_LLM"]=$(gcloud run services describe llm-service \
+        --region="$REGION" --format="value(status.url)")
+    log "llm-service deployed: ${SERVICE_URLS["URL_LLM"]}"
     LLM_EXISTS=true
 else
-    log "LLM service not found (run 02-setup-llm.sh to deploy)"
+    log "Skipping llm-service deployment (TGI not available)"
     LLM_EXISTS=false
 fi
 
@@ -265,7 +313,7 @@ if [ "$LLM_EXISTS" = true ]; then
     log "Setting URL_LLM..."
     gcloud composer environments run "$COMPOSER_ENV" \
         --location="$REGION" \
-        variables set -- URL_LLM "${SERVICE_URLS["URL_LLM"]}/generate"
+        variables set -- URL_LLM "${SERVICE_URLS["URL_LLM"]}/run-llm"
 fi
 
 log "Airflow variables set"
@@ -284,15 +332,43 @@ gcloud composer environments storage dags import "$COMPOSER_ENV" \
 log "DAG uploaded"
 
 # =============================================================================
+# STEP 6: DEPLOY GATEWAY SERVICE
+# =============================================================================
+log "=========================================="
+log "STEP 6: Deploying Gateway Service"
+log "=========================================="
+
+# Get Airflow webserver URL
+AIRFLOW_URI=$(gcloud composer environments describe "$COMPOSER_ENV" \
+    --location="$REGION" \
+    --format="value(config.airflowUri)")
+
+log ">>> Building gateway-service..."
+cd "$PIPELINE_PATH/gateway_service"
+
+gcloud builds submit --tag "${REGISTRY}/gateway-service"
+
+log ">>> Deploying gateway-service with AIRFLOW_WEBSERVER_URL..."
+gcloud run deploy gateway-service \
+    --image "${REGISTRY}/gateway-service" \
+    --region "$REGION" \
+    --min-instances 1 \
+    --max-instances 3 \
+    --memory 512Mi \
+    --cpu 1 \
+    --set-env-vars "AIRFLOW_WEBSERVER_URL=${AIRFLOW_URI}" \
+    --allow-unauthenticated
+
+GATEWAY_URL=$(gcloud run services describe gateway-service \
+    --region="$REGION" --format="value(status.url)")
+log "gateway-service deployed: ${GATEWAY_URL}"
+
+# =============================================================================
 # SUMMARY
 # =============================================================================
 log "=========================================="
 log "DEPLOYMENT COMPLETE"
 log "=========================================="
-
-AIRFLOW_URI=$(gcloud composer environments describe "$COMPOSER_ENV" \
-    --location="$REGION" \
-    --format="value(config.airflowUri)")
 
 echo ""
 echo "Cloud Run Services:"
@@ -303,6 +379,7 @@ echo "  push-service:       ${SERVICE_URLS["URL_PUSH"]}"
 if [ "$LLM_EXISTS" = true ]; then
     echo "  llm-service:        ${SERVICE_URLS["URL_LLM"]}"
 fi
+echo "  gateway-service:    ${GATEWAY_URL}"
 echo ""
 echo "Cloud Composer:"
 echo "  Environment: $COMPOSER_ENV"
@@ -315,9 +392,11 @@ else
     echo "  URL_READ, URL_PREPROCESS, URL_VALIDATE, URL_PUSH"
     echo ""
     echo "NOTE: LLM service not found. Run 02-setup-llm.sh then re-run this script"
-    echo "      to set URL_LLM, or set it manually:"
-    echo "      gcloud composer environments run $COMPOSER_ENV --location=$REGION \\"
-    echo "        variables set -- URL_LLM '<llm-service-url>/generate'"
+    echo "      to deploy llm-service and set URL_LLM"
 fi
+echo ""
+echo "Frontend Gateway:"
+echo "  ${GATEWAY_URL}/summarize  - Trigger pipeline"
+echo "  ${GATEWAY_URL}/result/{video_id}  - Get results"
 echo ""
 echo "To tear down all resources: ./99-teardown.sh"

@@ -15,6 +15,7 @@ PROJECT_ID="vidsynth-demo-proj2025"
 REGION="us-central1"
 ARTIFACT_REPO="vidsynth-repo"
 BUCKET_NAME="vidsynth-demo-model-store"
+RESULTS_BUCKET="vidsynth-results"
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -113,9 +114,9 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Step 6: Create Storage Bucket
+# Step 6: Create Storage Bucket (Model Store)
 # -----------------------------------------------------------------------------
-log "Step 6: Creating storage bucket..."
+log "Step 6: Creating model storage bucket..."
 BUCKET_URI="gs://${BUCKET_NAME}"
 if gcloud storage buckets describe "$BUCKET_URI" &> /dev/null; then
     log "Bucket $BUCKET_NAME already exists, skipping"
@@ -123,13 +124,27 @@ else
     gcloud storage buckets create "$BUCKET_URI" \
         --location="$REGION" \
         --uniform-bucket-level-access
-    log "Storage bucket created"
+    log "Model storage bucket created"
 fi
 
 # -----------------------------------------------------------------------------
-# Step 7: Configure Docker Authentication
+# Step 7: Create Storage Bucket (Results)
 # -----------------------------------------------------------------------------
-log "Step 7: Configuring Docker authentication for Artifact Registry..."
+log "Step 7: Creating results storage bucket..."
+RESULTS_BUCKET_URI="gs://${RESULTS_BUCKET}"
+if gcloud storage buckets describe "$RESULTS_BUCKET_URI" &> /dev/null; then
+    log "Bucket $RESULTS_BUCKET already exists, skipping"
+else
+    gcloud storage buckets create "$RESULTS_BUCKET_URI" \
+        --location="$REGION" \
+        --uniform-bucket-level-access
+    log "Results storage bucket created"
+fi
+
+# -----------------------------------------------------------------------------
+# Step 8: Configure Docker Authentication
+# -----------------------------------------------------------------------------
+log "Step 8: Configuring Docker authentication for Artifact Registry..."
 gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 log "Docker authentication configured"
 
@@ -143,10 +158,11 @@ echo ""
 echo "Project ID:        $PROJECT_ID"
 echo "Region:            $REGION"
 echo "Artifact Registry: ${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}"
-echo "Storage Bucket:    gs://${BUCKET_NAME}"
+echo "Model Bucket:      gs://${BUCKET_NAME}"
+echo "Results Bucket:    gs://${RESULTS_BUCKET}"
 echo ""
 echo "Next steps:"
-echo "  1. Build and push your container images"
-echo "  2. Run the deployment script (02-deploy.sh)"
+echo "  1. Run 02-setup-llm.sh to deploy the TGI service"
+echo "  2. Run 03-deploy.sh to deploy other services and Composer"
 echo ""
 echo "To tear down this project, run: ./99-teardown.sh"

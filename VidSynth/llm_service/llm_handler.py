@@ -7,7 +7,10 @@ logger = logging.getLogger("uvicorn")
 class LLMHandler:
     def __init__(self):
         logger.info("🚀 Initializing TGI LLM Client...")
-        self.api_url = "YOUR_TGI_CLOUD_RUN_URL"
+        self.api_url = os.getenv("TGI_SERVICE_URL")
+
+        if not self.api_url:
+            raise ValueError("TGI_SERVICE_URL environment variable not set")
         
         logger.info(f"🔗 Configured to use TGI Service at: {self.api_url}")
 

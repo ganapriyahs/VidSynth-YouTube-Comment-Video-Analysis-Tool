@@ -1,4 +1,4 @@
-# Fresh State Deployment Scripts
+# GCP Bootstrap & Deployment Scripts
 
 Automates GCP project setup and Cloud Run deployment for the VidSynth pipeline.
 
@@ -14,19 +14,20 @@ Automates GCP project setup and Cloud Run deployment for the VidSynth pipeline.
 │   ├── Link billing account                                      │
 │   ├── Enable APIs (Artifact Registry, Cloud Run, etc.)          │
 │   ├── Create Artifact Registry repo                             │
-│   └── Create Storage bucket                                     │
+│   ├── Create model storage bucket                               │
+│   └── Create results storage bucket                             │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    PHASE 2: LLM Setup                           │
+│                    PHASE 2: TGI Setup                           │
 │              (Run inside tmux, ~20 min total)                   │
 │                                                                 │
 │   02-setup-llm.sh                                               │
 │   ├── 1. Create temp VM for setup                               │
 │   ├── 2. Download Llama model from HuggingFace → GCS            │
 │   ├── 3. Pull TGI image → push to Artifact Registry             │
-│   ├── 4. Deploy LLM service to Cloud Run with GPU               │
+│   ├── 4. Deploy TGI service to Cloud Run with GPU               │
 │   └── 5. Delete temp VM                                         │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -38,9 +39,11 @@ Automates GCP project setup and Cloud Run deployment for the VidSynth pipeline.
 │   03-deploy.sh                                                  │
 │   ├── 1. Start Composer creation (async)                        │
 │   ├── 2. Build & deploy Cloud Run services (~10 min)            │
+│   │      (read, preprocess, validate, push, llm-wrapper)        │
 │   ├── 3. Wait for Composer to be ready (~25 min from start)     │
-│   ├── 4. Set Airflow Variables (all URLs including LLM)         │
-│   └── 5. Upload DAG                                             │
+│   ├── 4. Set Airflow Variables (all service URLs)               │
+│   ├── 5. Upload DAG                                             │
+│   └── 6. Deploy gateway service                                 │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -54,13 +57,37 @@ Automates GCP project setup and Cloud Run deployment for the VidSynth pipeline.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Directory Structure
+
+These scripts assume the following repo structure:
+
+```
+vidsynth/  (repo root)
+├── Deployment_Scripts/
+│   ├── 01-bootstrap.sh
+│   ├── 02-setup-llm.sh
+│   ├── 03-deploy.sh
+│   ├── 99-teardown.sh
+│   └── tgi-service.yaml
+└── VidSynth/
+    ├── read_service/
+    ├── preprocess_service/
+    ├── llm_service/          # Wrapper that calls TGI
+    ├── validate_service/
+    ├── push_service/
+    ├── gateway_service/      # Frontend API
+    └── airflow/
+        └── dags/
+            └── vidsynth_pipeline_dag.py
+```
+
 ## Prerequisites
 
 1. **gcloud CLI** installed: https://cloud.google.com/sdk/docs/install
 2. **Authenticated**: Run `gcloud auth login`
 3. **Billing Account ID**: Find via `gcloud billing accounts list`
 
-## Quick Start (Browser Cloud Shell recommended)
+## Quick Start (Cloud Shell recommended)
 
 ```bash
 # Clone your repo
@@ -77,11 +104,12 @@ export BILLING_ACCOUNT="01XXXX-XXXXXX-XXXXXX"
 # 2. Start tmux session (prevents Cloud Shell timeout)
 tmux new -s deploy
 
-# 3. Run LLM setup (~20 min) - requires HuggingFace token
+# 3. Run TGI setup (~20 min) - requires HuggingFace token
 export HF_TOKEN="hf_your_token_here"
 ./02-setup-llm.sh
 
-# 4. Run deployment (~30 min total)
+# 4. Run deployment (~30 min total) - requires YouTube API key
+export YOUTUBE_API_KEY="your-youtube-api-key"
 ./03-deploy.sh
 
 # If Cloud Shell disconnects, reconnect and run:
@@ -101,15 +129,23 @@ Before running `02-setup-llm.sh`:
 
 The script downloads the quantized AWQ version (~4GB instead of ~16GB) for faster setup.
 
+## Deployment Prerequisites
+
+Before running `03-deploy.sh`:
+
+1. **YouTube Data API key**: https://console.cloud.google.com/apis/credentials
+   - Create a new API key or use existing one
+   - Enable YouTube Data API v3 for your project
+
 **Note:** Running `02-setup-llm.sh` before `03-deploy.sh` ensures the LLM URL is automatically set as an Airflow variable.
 
-## Info about tmux command:
+## Tmux Information
 
 Cloud Shell times out after ~20 minutes of idle time. The deployment script takes ~30 minutes (mostly waiting for Composer). Tmux creates a persistent session that keeps running even if your browser disconnects:
 
 ```bash
 tmux new -s deploy      # Start new session named "deploy"
-./02-deploy.sh          # Run script inside tmux
+./03-deploy.sh          # Run script inside tmux
 
 # If disconnected, reconnect to Cloud Shell then:
 tmux attach -t deploy   # Reattach to see progress

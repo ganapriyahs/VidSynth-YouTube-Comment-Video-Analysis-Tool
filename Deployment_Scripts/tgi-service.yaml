@@ -1,7 +1,9 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: llm-service
+  name: tgi-service
+  annotations:
+    run.googleapis.com/ingress: all
 spec:
   template:
     metadata:

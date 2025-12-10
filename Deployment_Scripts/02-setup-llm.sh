@@ -42,8 +42,8 @@ VM_NAME="llm-setup-vm"
 VM_MACHINE_TYPE="e2-standard-4"  # 4 vCPU, 16GB RAM - no GPU needed for download
 VM_DISK_SIZE="60GB"
 
-# Cloud Run LLM service configuration
-LLM_SERVICE_NAME="llm-service"
+# Cloud Run TGI service configuration
+TGI_SERVICE_NAME="tgi-service"
 
 # Registry base path
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}"
@@ -330,9 +330,9 @@ if ! gcloud artifacts docker images describe "${TGI_TARGET_IMAGE}" &> /dev/null 
 fi
 
 # Verify service.yaml exists
-SERVICE_YAML="./llm-service.yaml"
+SERVICE_YAML="./tgi-service.yaml"
 if [ ! -f "$SERVICE_YAML" ]; then
-    log "ERROR: llm-service.yaml not found in current directory"
+    log "ERROR: tgi-service.yaml not found in current directory"
     log "Make sure you run this script from the Deployment_Scripts/ directory"
     exit 1
 fi
@@ -342,30 +342,35 @@ log "Deploying Cloud Run service with GPU using FUSE volume mount..."
 # Deploy using service.yaml (creates or replaces)
 gcloud run services replace "$SERVICE_YAML" --region="$REGION"
 
+# Make TGI service publicly accessible
+gcloud run services add-iam-policy-binding "$TGI_SERVICE_NAME" \
+    --region="$REGION" \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+
 # Get service URL
-LLM_URL=$(gcloud run services describe "$LLM_SERVICE_NAME" \
+TGI_URL=$(gcloud run services describe "$TGI_SERVICE_NAME" \
     --region="$REGION" --format="value(status.url)")
 
-log "LLM service deployed: $LLM_URL"
+log "TGI service deployed: $TGI_URL"
 
 # =============================================================================
 # SUMMARY
 # =============================================================================
 log "=========================================="
-log "LLM SETUP COMPLETE"
+log "TGI SETUP COMPLETE"
 log "=========================================="
 
 echo ""
 echo "Model location:  gs://${BUCKET_NAME}/${MODEL_GCS_PATH}/"
 echo "TGI image:       ${TGI_TARGET_IMAGE}"
-echo "LLM service:     ${LLM_URL}"
+echo "TGI service:     ${TGI_URL}"
 echo ""
 echo "Deployment uses GCS FUSE volume mount (no cold-start download required)."
 echo "min-instances=1 keeps one instance warm to avoid cold starts."
 echo ""
-echo "Test the service (requires authentication):"
-echo "  curl -X POST ${LLM_URL}/generate \\"
-echo "    -H 'Authorization: Bearer \$(gcloud auth print-identity-token)' \\"
+echo "Test the service:"
+echo "  curl -X POST ${TGI_URL}/generate \\"
 echo "    -H 'Content-Type: application/json' \\"
 echo "    -d '{\"inputs\": \"What is machine learning?\", \"parameters\": {\"max_new_tokens\": 100}}'"
 echo ""

@@ -15,8 +15,11 @@ REGION="us-central1"
 ZONE="us-central1-a"
 ARTIFACT_REPO="vidsynth-repo"
 BUCKET_NAME="vidsynth-demo-model-store"
+RESULTS_BUCKET="vidsynth-results"
 COMPOSER_ENV="vidsynth-composer"
+TGI_SERVICE_NAME="tgi-service"
 LLM_SERVICE_NAME="llm-service"
+GATEWAY_SERVICE_NAME="gateway-service"
 LLM_SETUP_VM="llm-setup-vm"
 
 # =============================================================================
@@ -123,17 +126,30 @@ case $MODE in
             log "  Repository not found, skipping"
         fi
         
-        # Delete Storage bucket contents and bucket
-        log "Deleting storage bucket..."
+        # Delete Storage bucket contents and bucket (Model Store)
+        log "Deleting model storage bucket..."
         BUCKET_URI="gs://${BUCKET_NAME}"
         if gcloud storage buckets describe "$BUCKET_URI" &> /dev/null; then
             # Delete all objects first
             gcloud storage rm -r "${BUCKET_URI}/**" 2>/dev/null || true
             # Delete bucket
             gcloud storage buckets delete "$BUCKET_URI" --quiet
-            log "  Bucket deleted"
+            log "  Model bucket deleted"
         else
-            log "  Bucket not found, skipping"
+            log "  Model bucket not found, skipping"
+        fi
+        
+        # Delete Storage bucket contents and bucket (Results)
+        log "Deleting results storage bucket..."
+        RESULTS_BUCKET_URI="gs://${RESULTS_BUCKET}"
+        if gcloud storage buckets describe "$RESULTS_BUCKET_URI" &> /dev/null; then
+            # Delete all objects first
+            gcloud storage rm -r "${RESULTS_BUCKET_URI}/**" 2>/dev/null || true
+            # Delete bucket
+            gcloud storage buckets delete "$RESULTS_BUCKET_URI" --quiet
+            log "  Results bucket deleted"
+        else
+            log "  Results bucket not found, skipping"
         fi
         
         log "Resources deleted. Project $PROJECT_ID retained."

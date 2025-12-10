@@ -22,11 +22,12 @@ app.add_middleware(
 )
 
 # --- CONFIGURATION ---
-PROJECT_ID = "vidsynth"
-RESULTS_BUCKET = "vidsynth_results"
-DAG_ID = "vidsynth_pipeline"
+# PROJECT_ID = "vidsynth" # seemingly unused 
+RESULTS_BUCKET = "vidsynth-results" # can keep hard coded, since will have been already created before deploy 
+DAG_ID = "vidsynth_pipeline" # simlar to above 
 
-AIRFLOW_WEBSERVER_URL = "YOUR_AIRFLOW_WEBSERVER_URL" 
+# AIRFLOW_WEBSERVER_URL = "YOUR_AIRFLOW_WEBSERVER_URL"  # MAYBE put back for CI/CD continous deploy, GitHub secret?
+AIRFLOW_WEBSERVER_URL = os.getenv("AIRFLOW_WEBSERVER_URL")
 
 class VideoRequest(BaseModel):
     video_id: str
@@ -40,6 +41,10 @@ def trigger_pipeline(request: VideoRequest):
     video_id = request.video_id
     video_link = f"https://www.youtube.com/watch?v={video_id}"
     logger.info(f"Triggering DAG for: {video_link}")
+
+    
+    if not AIRFLOW_WEBSERVER_URL:
+        raise HTTPException(status_code=500, detail="AIRFLOW_WEBSERVER_URL not configured")
 
     try:
         storage_client = storage.Client()
