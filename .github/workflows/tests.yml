@@ -1,0 +1,107 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-read:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install read service dependencies
+        run: pip install -r VidSynth/read_service/requirements.txt
+      
+      - name: Install test dependencies
+        run: pip install -r VidSynth/requirements-dev.txt
+      
+      - name: Run read tests
+        run: pytest VidSynth/tests/test_read.py -v
+
+  test-preprocess:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install preprocess service dependencies
+        run: pip install -r VidSynth/preprocess_service/requirements.txt
+      
+      - name: Install test dependencies
+        run: pip install -r VidSynth/requirements-dev.txt
+      
+      - name: Run preprocess tests
+        run: pytest VidSynth/tests/test_preprocess.py -v
+
+  test-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install validate service dependencies
+        run: pip install -r VidSynth/validate_service/requirements.txt
+      
+      - name: Install test dependencies
+        run: pip install -r VidSynth/requirements-dev.txt
+      
+      - name: Run validate tests
+        run: pytest VidSynth/tests/test_validate.py -v
+
+  test-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install push service dependencies
+        run: pip install -r VidSynth/push_service/requirements.txt
+      
+      - name: Install test dependencies
+        run: pip install -r VidSynth/requirements-dev.txt
+      
+      - name: Run push tests
+        run: pytest VidSynth/tests/test_push.py -v
+
+  test-gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install gateway service dependencies
+        run: pip install -r VidSynth/gateway_service/requirements.txt
+      
+      - name: Install test dependencies
+        run: pip install -r VidSynth/requirements-dev.txt
+      
+      - name: Run gateway tests
+        run: pytest VidSynth/tests/test_gateway.py -v
