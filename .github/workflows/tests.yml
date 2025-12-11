@@ -58,7 +58,7 @@ jobs:
           python-version: "3.11"
       
       - name: Install validate service dependencies
-        run: pip install -r VidSynth/validate_service/requirements.txt
+        run: pip install -r VidSynth/validate_service/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
       
       - name: Install test dependencies
         run: pip install -r VidSynth/requirements-dev.txt
