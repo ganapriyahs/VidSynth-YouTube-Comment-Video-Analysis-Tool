@@ -1,6 +1,0 @@
-fastapi
-uvicorn[standard]
-pydantic
-google-api-python-client
-youtube-transcript-api
-python-dotenv

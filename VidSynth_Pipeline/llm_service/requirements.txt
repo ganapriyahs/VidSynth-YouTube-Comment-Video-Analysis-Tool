@@ -1,8 +1,0 @@
-fastapi
-uvicorn[standard]
-pydantic
-torch
-transformers
-accelerate
-python-dotenv
-google-cloud-storage
