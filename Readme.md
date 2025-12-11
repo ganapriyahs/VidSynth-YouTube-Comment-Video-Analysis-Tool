@@ -3,6 +3,8 @@
 **Watch the Demo Video:**
 [![VidSynth Demo](https://img.youtube.com/vi/EaZHgtlxTGY/0.jpg)](https://www.youtube.com/watch?v=EaZHgtlxTGY)
 
+[Project Flowchart] (https://www.canva.com/design/DAG63p_KlqE/y7ne_HdWMFrRu3cINaVOJQ/edit?utm_content=DAG63p_KlqE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+
 ## 📖 Overview
 **VidSynth** is an advanced video analysis tool designed to summarize long YouTube videos and analyze viewer sentiment in real-time. It features a secure browser-based frontend, a distributed microservices backend, and an event-driven orchestration pipeline.
 
