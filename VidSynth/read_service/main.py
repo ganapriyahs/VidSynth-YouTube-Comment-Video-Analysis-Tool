@@ -11,7 +11,7 @@ app = FastAPI(title="VidSynth Read Service")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# helper function to extract the YouTube video ID from various URL formats
+# helper function to extract the YouTube video ID from various URL formats # TEST EDIT FOR CI/CD
 def extract_video_id(url: str) -> str | None: 
     """Extracts YouTube video ID from various common link patterns."""
     try:
