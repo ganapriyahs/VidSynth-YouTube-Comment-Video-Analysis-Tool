@@ -38,7 +38,8 @@ echo "  - Project: $PROJECT_ID"
 echo "  - Composer environment: $COMPOSER_ENV"
 echo "  - All Cloud Run services"
 echo "  - Artifact Registry and images"
-echo "  - Storage bucket: $BUCKET_NAME"
+echo "  - Storage buckets: $BUCKET_NAME, $RESULTS_BUCKET"
+echo "  - Auto-created buckets: Cloud Build, Composer"
 echo "=========================================="
 echo ""
 read -p "Are you sure you want to continue? (type 'yes' to confirm): " CONFIRM
@@ -150,6 +151,28 @@ case $MODE in
             log "  Results bucket deleted"
         else
             log "  Results bucket not found, skipping"
+        fi
+        
+        # Delete Cloud Build bucket (auto-created)
+        log "Deleting Cloud Build bucket..."
+        CLOUDBUILD_BUCKET="gs://${PROJECT_ID}_cloudbuild"
+        if gcloud storage buckets describe "$CLOUDBUILD_BUCKET" &> /dev/null; then
+            gcloud storage rm -r "${CLOUDBUILD_BUCKET}/**" 2>/dev/null || true
+            gcloud storage buckets delete "$CLOUDBUILD_BUCKET" --quiet
+            log "  Cloud Build bucket deleted"
+        else
+            log "  Cloud Build bucket not found, skipping"
+        fi
+        
+        # Delete Composer bucket (auto-created, has dynamic suffix)
+        log "Deleting Composer bucket..."
+        COMPOSER_BUCKET=$(gcloud storage buckets list --format="value(name)" | grep "${REGION}-.*-bucket" | head -1)
+        if [ -n "$COMPOSER_BUCKET" ]; then
+            gcloud storage rm -r "gs://${COMPOSER_BUCKET}/**" 2>/dev/null || true
+            gcloud storage buckets delete "gs://${COMPOSER_BUCKET}" --quiet
+            log "  Composer bucket deleted: $COMPOSER_BUCKET"
+        else
+            log "  Composer bucket not found, skipping"
         fi
         
         log "Resources deleted. Project $PROJECT_ID retained."
