@@ -1,0 +1,179 @@
+name: Deploy to Cloud Run
+
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types:
+      - completed
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  REGISTRY: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/vidsynth-repo
+
+jobs:
+  detect-changes:
+    # Only run if tests passed
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      read: ${{ steps.changes.outputs.read }}
+      preprocess: ${{ steps.changes.outputs.preprocess }}
+      llm: ${{ steps.changes.outputs.llm }}
+      validate: ${{ steps.changes.outputs.validate }}
+      push: ${{ steps.changes.outputs.push }}
+      gateway: ${{ steps.changes.outputs.gateway }}
+      dag: ${{ steps.changes.outputs.dag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            read:
+              - 'VidSynth/read_service/**'
+            preprocess:
+              - 'VidSynth/preprocess_service/**'
+            llm:
+              - 'VidSynth/llm_service/**'
+            validate:
+              - 'VidSynth/validate_service/**'
+            push:
+              - 'VidSynth/push_service/**'
+            gateway:
+              - 'VidSynth/gateway_service/**'
+            dag:
+              - 'VidSynth/airflow/dags/**'
+
+  deploy-services:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # --- READ SERVICE ---
+      - name: Deploy read-service
+        if: needs.detect-changes.outputs.read == 'true'
+        run: |
+          cd VidSynth/read_service
+          gcloud builds submit --tag ${{ env.REGISTRY }}/read-service
+          gcloud run deploy read-service \
+            --image ${{ env.REGISTRY }}/read-service \
+            --region ${{ env.REGION }} \
+            --min-instances 1 \
+            --max-instances 3 \
+            --memory 512Mi \
+            --cpu 1 \
+            --allow-unauthenticated
+
+      # --- PREPROCESS SERVICE ---
+      - name: Deploy preprocess-service
+        if: needs.detect-changes.outputs.preprocess == 'true'
+        run: |
+          cd VidSynth/preprocess_service
+          gcloud builds submit --tag ${{ env.REGISTRY }}/preprocess-service
+          gcloud run deploy preprocess-service \
+            --image ${{ env.REGISTRY }}/preprocess-service \
+            --region ${{ env.REGION }} \
+            --min-instances 1 \
+            --max-instances 3 \
+            --memory 512Mi \
+            --cpu 1 \
+            --set-env-vars "YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}" \
+            --allow-unauthenticated
+
+      # --- LLM SERVICE (wrapper) ---
+      - name: Deploy llm-service
+        if: needs.detect-changes.outputs.llm == 'true'
+        run: |
+          TGI_URL=$(gcloud run services describe tgi-service \
+            --region ${{ env.REGION }} \
+            --format="value(status.url)")
+          
+          cd VidSynth/llm_service
+          gcloud builds submit --tag ${{ env.REGISTRY }}/llm-service
+          gcloud run deploy llm-service \
+            --image ${{ env.REGISTRY }}/llm-service \
+            --region ${{ env.REGION }} \
+            --min-instances 1 \
+            --max-instances 3 \
+            --memory 1Gi \
+            --cpu 1 \
+            --timeout 600 \
+            --set-env-vars "TGI_SERVICE_URL=${TGI_URL}/generate" \
+            --allow-unauthenticated
+
+      # --- VALIDATE SERVICE ---
+      - name: Deploy validate-service
+        if: needs.detect-changes.outputs.validate == 'true'
+        run: |
+          cd VidSynth/validate_service
+          gcloud builds submit --tag ${{ env.REGISTRY }}/validate-service
+          gcloud run deploy validate-service \
+            --image ${{ env.REGISTRY }}/validate-service \
+            --region ${{ env.REGION }} \
+            --min-instances 1 \
+            --max-instances 3 \
+            --memory 2Gi \
+            --cpu 4 \
+            --timeout 300 \
+            --allow-unauthenticated
+
+      # --- PUSH SERVICE ---
+      - name: Deploy push-service
+        if: needs.detect-changes.outputs.push == 'true'
+        run: |
+          cd VidSynth/push_service
+          gcloud builds submit --tag ${{ env.REGISTRY }}/push-service
+          gcloud run deploy push-service \
+            --image ${{ env.REGISTRY }}/push-service \
+            --region ${{ env.REGION }} \
+            --min-instances 1 \
+            --max-instances 3 \
+            --memory 512Mi \
+            --cpu 1 \
+            --allow-unauthenticated
+
+      # --- GATEWAY SERVICE ---
+      - name: Deploy gateway-service
+        if: needs.detect-changes.outputs.gateway == 'true'
+        run: |
+          AIRFLOW_URL=$(gcloud composer environments describe vidsynth-composer \
+            --location ${{ env.REGION }} \
+            --format="value(config.airflowUri)")
+          
+          cd VidSynth/gateway_service
+          gcloud builds submit --tag ${{ env.REGISTRY }}/gateway-service
+          gcloud run deploy gateway-service \
+            --image ${{ env.REGISTRY }}/gateway-service \
+            --region ${{ env.REGION }} \
+            --min-instances 1 \
+            --max-instances 3 \
+            --memory 512Mi \
+            --cpu 1 \
+            --set-env-vars "AIRFLOW_WEBSERVER_URL=${AIRFLOW_URL}" \
+            --allow-unauthenticated
+
+      # --- DAG UPDATE ---
+      - name: Upload DAG
+        if: needs.detect-changes.outputs.dag == 'true'
+        run: |
+          gcloud composer environments storage dags import \
+            --environment vidsynth-composer \
+            --location ${{ env.REGION }} \
+            --source VidSynth/airflow/dags/vidsynth_pipeline_dag.py
