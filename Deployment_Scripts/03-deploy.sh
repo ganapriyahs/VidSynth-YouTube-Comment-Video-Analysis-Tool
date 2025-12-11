@@ -109,6 +109,11 @@ log "=========================================="
 log "STEP 1: Starting Cloud Composer Creation"
 log "=========================================="
 
+# Get project number for default compute service account
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")
+COMPOSER_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+log "Using service account: $COMPOSER_SA"
+
 if gcloud composer environments describe "$COMPOSER_ENV" --location="$REGION" &> /dev/null; then
     log "Composer environment $COMPOSER_ENV already exists, skipping creation"
     COMPOSER_ALREADY_EXISTS=true
@@ -119,6 +124,7 @@ else
     gcloud composer environments create "$COMPOSER_ENV" \
         --location="$REGION" \
         --image-version="$COMPOSER_IMAGE" \
+        --service-account="$COMPOSER_SA" \
         --async
     
     COMPOSER_ALREADY_EXISTS=false
@@ -194,8 +200,9 @@ gcloud run deploy validate-service \
     --region "$REGION" \
     --min-instances 1 \
     --max-instances 3 \
-    --memory 512Mi \
-    --cpu 1 \
+    --memory 2Gi \
+    --cpu 4 \
+    --timeout 300 \
     --allow-unauthenticated
 
 SERVICE_URLS["URL_VALIDATE"]=$(gcloud run services describe validate-service \
@@ -325,7 +332,8 @@ log "=========================================="
 log "STEP 5: Uploading DAG"
 log "=========================================="
 
-gcloud composer environments storage dags import "$COMPOSER_ENV" \
+gcloud composer environments storage dags import \
+    --environment="$COMPOSER_ENV" \
     --location="$REGION" \
     --source="$DAG_PATH"
 

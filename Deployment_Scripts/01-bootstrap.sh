@@ -100,9 +100,27 @@ done
 log "All APIs enabled"
 
 # -----------------------------------------------------------------------------
-# Step 5: Create Artifact Registry Repository
+# Step 5: Grant Composer Service Agent Required Role
 # -----------------------------------------------------------------------------
-log "Step 5: Creating Artifact Registry repository..."
+log "Step 5: Granting Composer Service Agent permissions..."
+
+# Get project number
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")
+COMPOSER_SA="service-${PROJECT_NUMBER}@cloudcomposer-accounts.iam.gserviceaccount.com"
+
+# Grant the ServiceAgentV2Ext role (required for Composer 2)
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${COMPOSER_SA}" \
+    --role="roles/composer.ServiceAgentV2Ext" \
+    --condition=None \
+    --quiet
+
+log "Composer service agent permissions granted"
+
+# -----------------------------------------------------------------------------
+# Step 6: Create Artifact Registry Repository
+# -----------------------------------------------------------------------------
+log "Step 6: Creating Artifact Registry repository..."
 if gcloud artifacts repositories describe "$ARTIFACT_REPO" --location="$REGION" &> /dev/null; then
     log "Repository $ARTIFACT_REPO already exists, skipping"
 else
@@ -114,9 +132,9 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Step 6: Create Storage Bucket (Model Store)
+# Step 7: Create Storage Bucket (Model Store)
 # -----------------------------------------------------------------------------
-log "Step 6: Creating model storage bucket..."
+log "Step 7: Creating model storage bucket..."
 BUCKET_URI="gs://${BUCKET_NAME}"
 if gcloud storage buckets describe "$BUCKET_URI" &> /dev/null; then
     log "Bucket $BUCKET_NAME already exists, skipping"
@@ -128,9 +146,9 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Step 7: Create Storage Bucket (Results)
+# Step 8: Create Storage Bucket (Results)
 # -----------------------------------------------------------------------------
-log "Step 7: Creating results storage bucket..."
+log "Step 8: Creating results storage bucket..."
 RESULTS_BUCKET_URI="gs://${RESULTS_BUCKET}"
 if gcloud storage buckets describe "$RESULTS_BUCKET_URI" &> /dev/null; then
     log "Bucket $RESULTS_BUCKET already exists, skipping"
@@ -142,9 +160,9 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# Step 8: Configure Docker Authentication
+# Step 9: Configure Docker Authentication
 # -----------------------------------------------------------------------------
-log "Step 8: Configuring Docker authentication for Artifact Registry..."
+log "Step 9: Configuring Docker authentication for Artifact Registry..."
 gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 log "Docker authentication configured"
 

@@ -91,8 +91,8 @@ vidsynth/  (repo root)
 
 ```bash
 # Clone your repo
-git clone https://github.com/YOUR_USERNAME/vidsynth.git
-cd vidsynth/Deployment_Scripts
+git clone https://github.com/ganapriyahs/VidSynth-YouTube-Comment-Video-Analysis-Tool.git
+cd ./VidSynth-YouTube-Comment-Video-Analysis-Tool/Deployment_Scripts/
 
 # Make scripts executable
 chmod +x *.sh
