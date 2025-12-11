@@ -1,3 +1,8 @@
+# VidSynth: YouTube Video & Sentiment Analysis Tool (Group 7)
+
+**Watch the Demo Video:**
+[![VidSynth Demo](https://img.youtube.com/vi/EaZHgtlxTGY/0.jpg)](https://www.youtube.com/watch?v=EaZHgtlxTGY)
+
 #### Architecture
 architecture orchestrated by Apache Airflow:
 
