@@ -4,7 +4,8 @@
 [![VidSynth Demo](https://img.youtube.com/vi/EaZHgtlxTGY/0.jpg)](https://www.youtube.com/watch?v=EaZHgtlxTGY)
 
 <p align="center">
-  <img src="BrainStorming_Documentation/flowchart.png" alt="Flowchart" style="max-width: 100%;">
+  <img src="BrainStorming_Documentation/flowchart01.png" alt="Flowchart" style="max-width: 100%;">
+  <img src="BrainStorming_Documentation/flowchart02.png" alt="Flowchart" style="max-width: 100%;">
 </p>
 
 ## 📖 Overview
