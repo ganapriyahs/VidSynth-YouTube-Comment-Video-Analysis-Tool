@@ -3,15 +3,36 @@
 **Watch the Demo Video:**
 [![VidSynth Demo](https://img.youtube.com/vi/EaZHgtlxTGY/0.jpg)](https://www.youtube.com/watch?v=EaZHgtlxTGY)
 
-#### Architecture
-architecture orchestrated by Apache Airflow:
+## 📖 Overview
+**VidSynth** is an advanced video analysis tool designed to summarize long YouTube videos and analyze viewer sentiment in real-time. It features a secure browser-based frontend, a distributed microservices backend, and an event-driven orchestration pipeline.
 
-#### FastAPI Microservices (Python):
-- read_service: Receives a full YouTube video URL, extracts the Video ID.
-- preprocess_service: Receives the Video ID, fetches the video transcript and top comments using the YouTube Transcript API and YouTube Data API v3.
-- llm_service: Receives the transcript and comments, uses a Hugging Face Transformer model (e.g., Flan-T5) to generate summaries for both.
-- validate_service: Performs basic quality checks on the generated summaries (e.g., length, checks for placeholders).
-- push_service: Receives the validated summaries and logs them (in a real application, this would save to a database or send to a front-end).
+The system allows users to:
+1.  **Authenticate** securely via email (SMTP OTP).
+2.  **Trigger Analysis** directly from a Chrome Extension on any YouTube video.
+3.  **View Results** (Video Summaries + Sentiment Analysis) instantly in the side panel.
+4.  **Track Usage** via a real-time Admin Dashboard.
+5.  **Access History** to view past summaries without re-processing.
+
+---
+
+## 🏗️ System Architecture
+
+The project consists of three main layers:
+
+### 1. Frontend Layer (Client)
+* **Chrome Extension**: A side-panel extension that captures the current video ID, handles user login, and displays results.
+* **Admin Dashboard**: A standalone HTML/JS dashboard for monitoring system stats and user activity in real-time.
+
+### 2. API Gateway & Auth Layer (Cloud Run)
+* **Gateway Service**: The entry point for the frontend. It routes requests to the appropriate backend service and triggers the Airflow pipeline.
+* **Auth Service**: Handles user authentication (SMTP email verification), generates JWT/OTPs, and logs usage stats to **Firestore**.
+
+### 3. Processing Pipeline 
+- **read_service**: Receives a full YouTube video URL and extracts the unique Video ID.
+- **preprocess_service**: Receives the Video ID, fetches the video transcript (via yt-dlp with cookie auth) and top comments (via YouTube Data API v3).
+- **llm_service**: Receives the transcript and comments, then calls a dedicated **Hugging Face TGI (Text Generation Inference)** container hosting the **Llama 3** model to generate high-quality summaries.
+- **validate_service**: Performs basic quality checks on the generated summaries (e.g., length validation, placeholder detection).
+- **push_service**: Receives the validated summaries, logs them, and saves the final result to Cloud Storage/Database for the frontend.
 
 #### Apache Airflow (Orchestration):
 Manages the workflow, calling each microservice in the correct sequence.
